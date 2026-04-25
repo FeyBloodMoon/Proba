@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерактивная Галерея</title>
+    
+    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
+    <script src="https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js"></script>
+
+    <style>
+        @keyframes colorChange {
+            0% { background-color: #1a1a2e; }
+            50% { background-color: #16213e; }
+            100% { background-color: #1a1a2e; }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            animation: colorChange 20s infinite ease-in-out;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            color: white;
+        }
+
+        /* Боковая панель */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 200px;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(15px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .filter-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 150px;
+            text-align: center;
+        }
+
+        .filter-btn:hover { background: rgba(255,255,255,0.2); }
+        .filter-btn.active { background: #4ecca3; border-color: #4ecca3; color: #1a1a2e; font-weight: bold; }
+
+        /* Галерея */
+        .main-content {
+            margin-left: 200px;
+            padding: 40px;
+            width: 100%;
+        }
+
+        .grid { margin: 0 auto; }
+
+        .grid-item {
+            width: 31%;
+            margin-bottom: 20px;
+            cursor: zoom-in;
+        }
+
+        .grid-item img {
+            width: 100%;
+            display: block;
+            border-radius: 12px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .grid-item:hover img { transform: scale(1.02); }
+
+        /* Модальное окно (Просмотр) */
+        #lightbox {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: zoom-out;
+        }
+
+        #lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 5px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 800px) {
+            .sidebar { width: 100%; height: 60px; flex-direction: row; bottom: 0; top: auto; border-right: none; border-top: 1px solid rgba(255,255,255,0.1); }
+            .main-content { margin-left: 0; margin-bottom: 60px; }
+            .filter-btn { width: auto; margin: 0 5px; padding: 5px 15px; }
+            .grid-item { width: 48%; }
+        }
+    .auth-bar {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1001;
+    }
+
+    .login-btn {
+        background: #4ecca3;
+        color: #1a1a2e;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    /* Панель смайликов под картинкой */
+    .reactions {
+        display: flex;
+        gap: 10px;
+        background: rgba(0,0,0,0.6);
+        padding: 5px 10px;
+        border-radius: 0 0 12px 12px;
+        margin-top: -10px; /* Чтобы "приклеить" к картинке сверху */
+        position: relative;
+        z-index: 5;
+    }
+
+    .reaction-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+        transition: transform 0.2s;
+    }
+
+    .reaction-btn:hover { transform: scale(1.3); }
+
+    .count { margin-left: 3px; font-size: 12px; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <button class="filter-btn active" data-cat="all">Всё</button>
+        <button class="filter-btn" data-cat="human">Люди</button>
+        <button class="filter-btn" data-cat="nohuman">Нелюди</button>
+    </div>
+	
+	<div class="auth-bar">
+		<button class="login-btn" id="loginBtn">Войти / Регистрация</button>
+	</div>
+
+    <div class="main-content">
+        <div class="grid" id="gallery"></div>
+    </div>
+
+    <div id="lightbox">
+        <img src="" alt="Full View">
+    </div>
+
+    <script>
+        // БАЗА ДАННЫХ КАРТИНОК
+        
+		const imagesData = [
+            { src: 'image/Human/1.png', category: 'human' },
+			{ src: 'image/Human/2.png', category: 'human' },
+			{ src: 'image/Human/3.png', category: 'human' },
+			{ src: 'image/Human/4.png', category: 'human' },
+            { src: 'image/NoHuman/1.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/2.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/3.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/4.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/5.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/6.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/7.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/8.png', category: 'nohuman' },
+			{ src: 'image/NoHuman/9.png', category: 'nohuman' },
+            // Добавь остальные файлы по аналогии
+        ];
+
+        const gallery = document.getElementById('gallery');
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = lightbox.querySelector('img');
+        let msnry;
+		
+		// Внутри цикла создания карточек в renderGallery замени item.innerHTML на это:
+    function renderGallery(filter = 'all') {
+        gallery.innerHTML = '';
+        let filtered = imagesData.filter(i => filter === 'all' || i.category === filter);
+        filtered.sort(() => Math.random() - 0.5);
+
+        filtered.forEach((data, index) => {
+            const item = document.createElement('div');
+            item.className = 'grid-item';
+            
+            // Здесь мы добавляем кнопки-смайлики
+            item.innerHTML = `
+                <img src="${data.src}" onclick="openLightbox('${data.src}')">
+                <div class="reactions">
+                    <button class="reaction-btn" onclick="addReaction('${index}', '🔥')">
+                        🔥 <span class="count" id="count-fire-${index}">0</span>
+                    </button>
+                    <button class="reaction-btn" onclick="addReaction('${index}', '💖')">
+                        💖 <span class="count" id="count-heart-${index}">0</span>
+                    </button>
+                    <button class="reaction-btn" onclick="addReaction('${index}', '👁️')">
+                        👁️ <span class="count" id="count-eye-${index}">0</span>
+                    </button>
+                </div>
+            `;
+            gallery.appendChild(item);
+        });
+        
+        // Перезапуск Masonry как раньше...
+    }
+
+    // Логика смайликов (пока локальная)
+    function addReaction(imgId, type) {
+        // Если пользователь не вошел — выдаем предупреждение
+        if (!isLoggedIn) {
+            alert("Нужно войти, чтобы ставить реакции!");
+            return;
+        }
+
+        // В реальном приложении здесь будет запрос к Firebase:
+        // db.collection('reactions').doc(imgId).update(...)
+	
+        
+        const counter = document.querySelector(`#count-${type === '🔥' ? 'fire' : (type === '💖' ? 'heart' : 'eye')}-${imgId}`);
+        counter.innerText = parseInt(counter.innerText) + 1;
+    }
+
+    let isLoggedIn = false;
+    document.getElementById('loginBtn').onclick = () => {
+        isLoggedIn = true; // Симуляция входа
+        alert("Вы успешно вошли!");
+        document.getElementById('loginBtn').innerText = "Профиль (User)";
+    };
+
+        // Функция отрисовки и перемешивания
+        function renderGallery(filter = 'all') {
+            // Очищаем текущую сетку
+            gallery.innerHTML = '';
+            
+            // Фильтруем и РАНДОМИЗИРУЕМ
+            let filtered = filter === 'all' 
+                ? [...imagesData] 
+                : imagesData.filter(i => i.category === filter);
+            
+            filtered.sort(() => Math.random() - 0.5);
+
+            // Создаем элементы
+            filtered.forEach(data => {
+                const item = document.createElement('div');
+                item.className = 'grid-item';
+                item.innerHTML = `<img src="${data.src}" loading="lazy">`;
+                
+                // Клик для увеличения
+                item.onclick = () => {
+                    lightboxImg.src = data.src;
+                    lightbox.style.display = 'flex';
+                };
+                
+                gallery.appendChild(item);
+            });
+
+            // Перезапуск Masonry
+            if (msnry) msnry.destroy(); // Удаляем старую сетку перед созданием новой
+
+            imagesLoaded(gallery, () => {
+                msnry = new Masonry(gallery, {
+                    itemSelector: '.grid-item',
+                    columnWidth: '.grid-item',
+                    percentPosition: true,
+                    gutter: 20
+                });
+            });
+        }
+
+        // Обработка кнопок фильтра
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelector('.filter-btn.active').classList.remove('active');
+                btn.classList.add('active');
+                renderGallery(btn.getAttribute('data-cat'));
+            });
+        });
+
+        // Закрытие модального окна
+        lightbox.onclick = () => {
+            lightbox.style.display = 'none';
+        };
+
+        // Стартовый запуск
+        renderGallery();
+    </script>
+</body>
+</html>

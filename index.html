@@ -84,7 +84,7 @@
 		// 1. Импортируем нужные модули из твоей версии Firebase
 		import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 		import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
-		import { getFirestore, doc, setDoc, onSnapshot, updateDoc, increment } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+		import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
         // КОНФИГУРАЦИЯ FIREBASE (Вставь сюда свои данные из консоли Firebase)
         const firebaseConfig = {
             apiKey: "AIzaSyBmzORb_dZNywx-h6UgoClALZ89PxMDcOg",
@@ -160,30 +160,63 @@
             });
         }
 
-        // Синхронизация с базой данных (в реальном времени)
-        window.syncLikes = (imgId) => {
-            onSnapshot(doc(db, "likes", imgId), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if(document.getElementById(`count-heart-${imgId}`)) {
-                        document.getElementById(`count-heart-${imgId}`).innerText = data.heart || 0;
-                        document.getElementById(`count-fire-${imgId}`).innerText = data.fire || 0;
-                    }
-                }
-            });
-        };
+        // Функция добавления/снятия лайка (Один человек — одна реакция)
+		window.addLike = async (imgId, type) => {
+			if (!currentUser) return alert("Сначала войди через Google!");
 
-        // Добавление лайка
-        window.addLike = async (imgId, type) => {
-            if (!currentUser) return alert("Сначала войди через Google!");
-            const docRef = doc(db, "likes", imgId);
-            try {
-                await updateDoc(docRef, { [type]: increment(1) });
-            } catch (e) {
-                // Если документа еще нет — создаем его
-                await setDoc(docRef, { heart: 0, fire: 0, [type]: 1 });
-            }
-        };
+			const uid = currentUser.uid; 
+			const docRef = doc(db, "likes", imgId);
+			
+			// 1. Получаем текущие данные из базы
+			const docSnap = await getDoc(docRef);
+			let userData = {};
+			
+			if (docSnap.exists()) {
+				userData = docSnap.data().users || {};
+			}
+
+			let newUserData = { ...userData };
+
+			// 2. Логика переключения
+			if (newUserData[uid] === type) {
+				// Если нажали на тот же смайлик — убираем его
+				delete newUserData[uid];
+			} else {
+				// Если нажали на другой — меняем выбор (старый затрется)
+				newUserData[uid] = type;
+			}
+
+			// 3. Считаем новые итоги
+			const counts = { heart: 0, fire: 0 };
+			Object.values(newUserData).forEach(val => {
+				if (val === 'heart') counts.heart++;
+				if (val === 'fire') counts.fire++;
+			});
+
+			// 4. Записываем обратно в Firebase
+			await setDoc(docRef, {
+				users: newUserData,
+				heart: counts.heart,
+				fire: counts.fire
+			}, { merge: true });
+		};
+
+		// Обновленная синхронизация
+		window.syncLikes = (imgId) => {
+			onSnapshot(doc(db, "likes", imgId), (docSnap) => {
+				if (docSnap.exists()) {
+					const data = docSnap.data();
+					const heartEl = document.getElementById(`count-heart-${imgId}`);
+					const fireEl = document.getElementById(`count-fire-${imgId}`);
+					
+					if (heartEl) heartEl.innerText = data.heart || 0;
+					if (fireEl) fireEl.innerText = data.fire || 0;
+
+					// Визуальная подсветка (опционально)
+					// Здесь можно добавить смену цвета кнопок, если data.users[currentUser.uid] совпадает
+				}
+			});
+		};
 
         window.showImg = (src) => {
             const lb = document.getElementById('lightbox');

@@ -81,11 +81,10 @@
     <div id="lightbox" onclick="this.style.display='none'"><img src=""></div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-		import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
-
+		// 1. Импортируем нужные модули из твоей версии Firebase
+		import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+		import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+		import { getFirestore, doc, setDoc, onSnapshot, updateDoc, increment } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
         // КОНФИГУРАЦИЯ FIREBASE (Вставь сюда свои данные из консоли Firebase)
         const firebaseConfig = {
             apiKey: "AIzaSyBmzORb_dZNywx-h6UgoClALZ89PxMDcOg",
@@ -98,9 +97,9 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
+		const auth = getAuth(app);
+		const db = getFirestore(app);
+			const provider = new GoogleAuthProvider();
 
         let currentUser = null;
 
@@ -202,7 +201,6 @@
         });
 
         renderGallery();
-		const analytics = getAnalytics(app);
     </script>
 </body>
 </html>
